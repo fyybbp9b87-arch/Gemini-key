@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UMN AI</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+
+<style>
+:root{
+--bg:#0a0a0f;
+--surface:#12121a;
+--surface2:#1a1a26;
+--border:rgba(255,255,255,0.07);
+--red:#c0392b;
+--green:#1abc9c;
+--text:#e8e8f0;
+--muted:#7070a0;
+}
+
+*{margin:0;padding:0;box-sizing:border-box;}
+
+body{
+font-family:'DM Sans',sans-serif;
+height:100vh;
+display:flex;
+flex-direction:column;
+background:var(--bg);
+color:var(--text);
+overflow:hidden;
+}
+
+header{
+display:flex;
+justify-content:space-between;
+padding:14px 22px;
+border-bottom:1px solid var(--border);
+background:rgba(10,10,15,0.85);
+backdrop-filter:blur(20px);
+}
+
+.logo{
+font-family:'Space Mono';
+font-weight:700;
+color:var(--green);
+letter-spacing:3px;
+}
+
+#chat{
+flex:1;
+overflow-y:auto;
+padding:24px 20px;
+display:flex;
+flex-direction:column;
+gap:18px;
+}
+
+#welcome{
+margin:auto;
+text-align:center;
+}
+
+#welcome h2{
+font-family:'Space Mono';
+font-size:32px;
+background:linear-gradient(135deg,var(--red),var(--green));
+-webkit-background-clip:text;
+-webkit-text-fill-color:transparent;
+}
+
+#welcome p{
+color:var(--muted);
+}
+
+.msg-wrap{
+display:flex;
+gap:12px;
+max-width:860px;
+}
+
+.msg-wrap.user{margin-left:auto;flex-direction:row-reverse;}
+
+.avatar{
+width:34px;height:34px;
+border-radius:10px;
+display:flex;
+align-items:center;
+justify-content:center;
+font-size:11px;
+font-family:'Space Mono';
+font-weight:700;
+}
+
+.ai-av{background:linear-gradient(135deg,var(--red),var(--green));}
+.user-av{background:var(--surface2);border:1px solid var(--border);}
+
+.msg{
+padding:14px 18px;
+border-radius:16px;
+line-height:1.7;
+font-size:15px;
+max-width:700px;
+border:1px solid var(--border);
+background:var(--surface);
+}
+
+.msg.user{
+background:rgba(26,188,156,0.08);
+}
+
+#bottom{
+padding:14px;
+background:rgba(10,10,15,0.92);
+border-top:1px solid var(--border);
+}
+
+#input-box{
+display:flex;
+gap:10px;
+background:var(--surface);
+border:1px solid var(--border);
+border-radius:16px;
+padding:10px 14px;
+}
+
+textarea{
+flex:1;
+background:transparent;
+border:none;
+outline:none;
+color:var(--text);
+resize:none;
+font-size:15px;
+}
+
+input{
+width:100%;
+padding:10px;
+margin-bottom:10px;
+border-radius:10px;
+border:1px solid var(--border);
+background:var(--surface);
+color:white;
+}
+button{
+width:100%;
+padding:12px;
+border:none;
+border-radius:14px;
+background:linear-gradient(135deg,var(--red),var(--green));
+color:white;
+font-weight:700;
+cursor:pointer;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+<div class="logo">UMN AI</div>
+<div>Gemini Powered</div>
+</header>
+
+<div id="chat">
+<div id="welcome">
+<h2>How can I help you?</h2>
+<p>Ask anything — code, science, maths, writing.</p>
+</div>
+</div>
+
+<div id="bottom">
+
+<!-- 🔑 GEMINI KEY BOX -->
+<input id="apiKey" placeholder="Enter your Gemini API Key">
+
+<div id="input-box">
+<textarea id="prompt" rows="1" placeholder="Message..."></textarea>
+<button onclick="send()">➤</button>
+</div>
+
+</div>
+
+<script>
+
+const chat = document.getElementById("chat");
+const input = document.getElementById("prompt");
+
+function addMsg(text, type){
+document.getElementById("welcome")?.remove();
+
+const wrap = document.createElement("div");
+wrap.className = "msg-wrap " + (type==="user"?"user":"");
+
+wrap.innerHTML = `
+<div class="avatar ${type==="user"?"user-av":"ai-av"}">
+${type==="user"?"YOU":"AI"}
+</div>
+<div class="msg ${type}">
+${type==="ai"?marked.parse(text):text}
+</div>
+`;
+
+chat.appendChild(wrap);
+chat.scrollTop = chat.scrollHeight;
+
+wrap.querySelectorAll("pre code").forEach(b=>{
+hljs.highlightElement(b);
+});
+}
+
+async function send(){
+
+const key = document.getElementById("apiKey").value.trim();
+const text = input.value.trim();
+
+if(!key) return alert("Enter Gemini API Key");
+if(!text) return;
+
+addMsg(text,"user");
+input.value="";
+
+const res = await fetch(
+`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`,
+{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({
+contents:[{parts:[{text}]}]
+})
+}
+);
+
+const data = await res.json();
+
+const reply =
+data.candidates?.[0]?.content?.parts?.[0]?.text
+|| "No response";
+
+addMsg(reply,"ai");
+}
+
+</script>
+
+</body>
+</html>
